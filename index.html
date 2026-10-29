@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FloraFind - Smart Botanical Locator & Admin Panel</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        #map {
+            width: 100%;
+            height: 100vh;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 0;
+        }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans overflow-hidden">
+
+    <!-- Map Container -->
+    <div id="map"></div>
+
+    <!-- TOP NAVIGATION BAR -->
+    <div class="fixed top-4 left-4 right-4 md:left-8 md:right-8 z-10 flex justify-between items-center glass-panel rounded-2xl shadow-xl px-6 py-3">
+        <div class="flex items-center gap-3">
+            <div class="bg-emerald-600 text-white p-2.5 rounded-xl shadow-md">
+                <i class="fa-solid fa-leaf text-lg"></i>
+            </div>
+            <div>
+                <h1 class="text-lg font-bold text-gray-800">FloraFind</h1>
+                <p class="text-[10px] text-emerald-700 font-medium">Smart Botanical Mapping (Surat)</p>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <button onclick="switchView('home')" id="homeBtn" class="bg-emerald-600 text-white px-4 py-2 rounded-xl text-sm font-medium shadow-sm transition">
+                <i class="fa-solid fa-map"></i> Map View
+            </button>
+            <button onclick="switchView('admin')" id="adminBtn" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-xl text-sm font-medium hover:bg-gray-300 transition">
+                <i class="fa-solid fa-lock"></i> Admin Panel
+            </button>
+        </div>
+    </div>
+
+    <!-- VIEW 1: HOME MAP & SEARCH -->
+    <div id="homeView" class="view-section">
+        <!-- Floating Search Panel -->
+        <div class="fixed top-24 left-4 md:left-8 md:w-96 z-10 glass-panel rounded-2xl shadow-xl p-4">
+            <h2 class="text-sm font-bold text-gray-800 mb-2">Dhoondhein Apna Podha (Search)</h2>
+            <div class="relative mb-3">
+                <i class="fa-solid fa-magnifying-glass absolute left-3 top-3.5 text-gray-400"></i>
+                <input type="text" id="searchInput" placeholder="Search plant e.g. Rose, Neem..." 
+                    class="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+            </div>
+            <div class="flex gap-2">
+                <button onclick="searchPlant()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2 rounded-xl text-sm shadow-md transition">
+                    Search
+                </button>
+                <button onclick="resetMap()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium px-4 py-2 rounded-xl text-sm transition">
+                    Reset
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- VIEW 2: ADMIN LOGIN & PANEL -->
+    <div id="adminView" class="view-section hidden fixed inset-0 z-20 bg-gray-900 bg-opacity-50 flex items-center justify-center p-4">
+        <!-- Login Box -->
+        <div id="loginBox" class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
+            <div class="text-center mb-6">
+                <div class="bg-emerald-100 text-emerald-600 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3 text-xl">
+                    <i class="fa-solid fa-user-shield"></i>
+                </div>
+                <h2 class="text-xl font-bold text-gray-800">Admin Login</h2>
+                <p class="text-xs text-gray-500">Garden manager access only</p>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="text-xs font-semibold text-gray-600">Username</label>
+                    <input type="text" id="adminUser" placeholder="admin" class="w-full mt-1 px-4 py-2 border rounded-xl text-sm">
+                </div>
+                <div>
+                    <label class="text-xs font-semibold text-gray-600">Password</label>
+                    <input type="password" id="adminPass" placeholder="admin123" class="w-full mt-1 px-4 py-2 border rounded-xl text-sm">
+                </div>
+                <button onclick="handleLogin()" class="w-full bg-emerald-600 text-white py-2.5 rounded-xl font-medium text-sm shadow-md hover:bg-emerald-700 transition">
+                    Login to Dashboard
+                </button>
+                <button onclick="switchView('home')" class="w-full bg-gray-100 text-gray-600 py-2 rounded-xl text-sm">
+                    Back to Map
+                </button>
+            </div>
+        </div>
+
+        <!-- Admin Dashboard Panel -->
+        <div id="dashboardBox" class="hidden bg-white rounded-2xl shadow-2xl p-6 w-full max-w-2xl max-h-[85vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-6 border-b pb-4">
+                <div>
+                    <h2 class="text-xl font-bold text-gray-800">Admin Dashboard</h2>
+                    <p class="text-xs text-emerald-600">Manage Campus Plants & Locations</p>
+                </div>
+                <button onclick="handleLogout()" class="bg-red-50 text-red-600 px-3 py-1.5 rounded-lg text-xs font-semibold">Logout</button>
+            </div>
+
+            <!-- Add Plant Form -->
+            <div class="bg-emerald-50 p-4 rounded-xl mb-6 border border-emerald-100">
+                <h3 class="text-sm font-bold text-emerald-900 mb-3"><i class="fa-solid fa-plus-circle"></i> Add New Plant</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                    <input type="text" id="newPlantName" placeholder="Plant Name (e.g. Rose)" class="px-3 py-2 bg-white border rounded-xl text-sm">
+                    <input type="text" id="newPlantCategory" placeholder="Category (e.g. Flower)" class="px-3 py-2 bg-white border rounded-xl text-sm">
+                </div>
+                <button onclick="addPlantByAdmin()" class="bg-emerald-600 text-white w-full py-2 rounded-xl text-sm font-medium shadow-md">
+                    📍 Fetch My GPS & Save Plant
+                </button>
+            </div>
+
+            <!-- Plants List Table -->
+            <h3 class="text-sm font-bold text-gray-800 mb-2">Existing Plants List</h3>
+            <div class="border rounded-xl overflow-hidden">
+                <table class="w-full text-left border-collapse text-xs">
+                    <thead>
+                        <tr class="bg-gray-50 border-b text-gray-600">
+                            <th class="p-3">Name</th>
+                            <th class="p-3">Category</th>
+                            <th class="p-3">Coordinates</th>
+                            <th class="p-3 text-center">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="plantsTableBody">
+                        <!-- Dynamic Rows -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        // 1. Map Initialization set to Surat City (Center: [21.1702, 72.8311], Zoom: 15)
+        let map = L.map('map', { zoomControl: false }).setView([21.1702, 72.8311], 15);
+        L.control.zoom({ position: 'bottomright' }).addTo(map);
+        let markersGroup = L.layerGroup().addTo(map);
+
+        // 2. Pure OpenStreetMap Tile Layer (Clean & Error-Free)
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        // 3. Default Data (Surat Locations)
+        let defaultPlants = [
+            { id: 1, name: "Rose (Gulaab)", category: "Flower", lat: 21.1702, lng: 72.8311, image: "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=400" },
+            { id: 2, name: "Yellow Rose", category: "Flower", lat: 21.1708, lng: 72.8318, image: "https://images.unsplash.com/photo-1533616688419-b7a585564566?w=400" },
+            { id: 3, name: "Neem Tree", category: "Medicinal", lat: 21.1695, lng: 72.8305, image: "https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?w=400" }
+        ];
+
+        let allPlantsData = JSON.parse(localStorage.getItem('plants')) || defaultPlants;
+
+        function renderMarkers(plants) {
+            markersGroup.clearLayers();
+            plants.forEach(plant => {
+                let marker = L.marker([plant.lat, plant.lng]);
+                let popupContent = `
+                    <div class="overflow-hidden">
+                        <img src="${plant.image}" class="w-full h-24 object-cover">
+                        <div class="p-3">
+                            <span class="text-[9px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">${plant.category}</span>
+                            <h4 class="font-bold text-gray-800 text-sm mt-1">${plant.name}</h4>
+                            <p class="text-[11px] text-gray-500 mt-0.5">Lat: ${plant.lat.toFixed(4)}, Lng: ${plant.lng.toFixed(4)}</p>
+                        </div>
+                    </div>
+                `;
+                marker.bindPopup(popupContent);
+                markersGroup.addLayer(marker);
+            });
+        }
+
+        function renderTable() {
+            let tbody = document.getElementById('plantsTableBody');
+            tbody.innerHTML = '';
+            allPlantsData.forEach((plant, index) => {
+                tbody.innerHTML += `
+                    <tr class="border-b hover:bg-gray-50">
+                        <td class="p-3 font-semibold text-gray-800">${plant.name}</td>
+                        <td class="p-3 text-gray-600">${plant.category}</td>
+                        <td class="p-3 text-gray-500">${plant.lat.toFixed(3)}, ${plant.lng.toFixed(3)}</td>
+                        <td class="p-3 text-center">
+                            <button onclick="deletePlant(${index})" class="text-red-500 hover:text-red-700"><i class="fa-solid fa-trash"></i></button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        function switchView(view) {
+            if(view === 'home') {
+                document.getElementById('adminView').classList.add('hidden');
+                document.getElementById('homeBtn').className = "bg-emerald-600 text-white px-4 py-2 rounded-xl text-sm font-medium shadow-sm transition";
+                document.getElementById('adminBtn').className = "bg-gray-200 text-gray-700 px-4 py-2 rounded-xl text-sm font-medium hover:bg-gray-300 transition";
+            } else if(view === 'admin') {
+                document.getElementById('adminView').classList.remove('hidden');
+                document.getElementById('homeBtn').className = "bg-gray-200 text-gray-700 px-4 py-2 rounded-xl text-sm font-medium hover:bg-gray-300 transition";
+                document.getElementById('adminBtn').className = "bg-emerald-600 text-white px-4 py-2 rounded-xl text-sm font-medium shadow-sm transition";
+            }
+        }
+
+        function handleLogin() {
+            let user = document.getElementById('adminUser').value;
+            let pass = document.getElementById('adminPass').value;
+            if(user === "admin" && pass === "admin123") {
+                document.getElementById('loginBox').classList.add('hidden');
+                document.getElementById('dashboardBox').classList.remove('hidden');
+                renderTable();
+            } else {
+                alert("Galat username ya password! (Try: admin / admin123)");
+            }
+        }
+
+        function handleLogout() {
+            document.getElementById('dashboardBox').classList.add('hidden');
+            document.getElementById('loginBox').classList.remove('hidden');
+            switchView('home');
+        }
+
+        function searchPlant() {
+            let query = document.getElementById('searchInput').value.toLowerCase().trim();
+            if(!query) return alert("Kripya podhe ka naam likhein!");
+            let filtered = allPlantsData.filter(p => p.name.toLowerCase().includes(query));
+            if(filtered.length === 0) {
+                alert("Koi podha nahi mila: " + query);
+                return;
+            }
+            renderMarkers(filtered);
+            map.setView([filtered[0].lat, filtered[0].lng], 16);
+        }
+
+        function resetMap() {
+            document.getElementById('searchInput').value = '';
+            renderMarkers(allPlantsData);
+            map.setView([21.1702, 72.8311], 15); // Reset back to Surat View
+        }
+
+        function addPlantByAdmin() {
+            let name = document.getElementById('newPlantName').value.trim();
+            let category = document.getElementById('newPlantCategory').value.trim() || "General";
+            if(!name) return alert("Podhe ka naam likhein!");
+
+            if ("geolocation" in navigator) {
+                navigator.geolocation.getCurrentPosition(position => {
+                    let newPlant = {
+                        id: allPlantsData.length + 1,
+                        name: name,
+                        category: category,
+                        lat: position.coords.latitude,
+                        lng: position.coords.longitude,
+                        image: "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=400"
+                    };
+                    allPlantsData.push(newPlant);
+                    localStorage.setItem('plants', JSON.stringify(allPlantsData));
+                    alert("Naya podha successfully add ho gaya!");
+                    document.getElementById('newPlantName').value = '';
+                    document.getElementById('newPlantCategory').value = '';
+                    renderMarkers(allPlantsData);
+                    renderTable();
+                }, () => {
+                    alert("GPS location nahi mil saki.");
+                });
+            } else {
+                alert("Browser geolocation support nahi karta.");
+            }
+        }
+
+        function deletePlant(index) {
+            if(confirm("Kya aap is podhe ko delete karna chahte hain?")) {
+                allPlantsData.splice(index, 1);
+                localStorage.setItem('plants', JSON.stringify(allPlantsData));
+                renderMarkers(allPlantsData);
+                renderTable();
+            }
+        }
+
+        renderMarkers(allPlantsData);
+    </script>
+</body>
+</html>
